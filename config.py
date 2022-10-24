@@ -14,4 +14,4 @@ DEBUG = True
 
 
 # TODO IMPLEMENT DATABASE URL
-SQLALCHEMY_DATABASE_URI = f'postgresql://postgres:{os.getenv("POSTGRES_PW")}@127.0.0.1:5432/todoapp'
+SQLALCHEMY_DATABASE_URI = f'postgresql://postgres:{os.getenv("POSTGRES_PW")}@127.0.0.1:5432/fyyur'

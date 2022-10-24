@@ -1,5 +1,7 @@
 {% extends 'layouts/main.html' %}
 {% block title %}{{ artist.name }} | Artist{% endblock %}
+{% set genres = artist.genres.split(',') %}
+
 {% block content %}
 <div class="row">
 	<div class="col-sm-6">
@@ -10,7 +12,7 @@
 			ID: {{ artist.id }}
 		</p>
 		<div class="genres">
-			{% for genre in artist.genres %}
+			{% for genre in genres %}
 			<span class="genre">{{ genre }}</span>
 			{% endfor %}
 		</div>

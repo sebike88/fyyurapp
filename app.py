@@ -13,6 +13,8 @@ from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
+from sqlalchemy import func
+from sqlalchemy.orm import aliased
 
 from markupsafe import escape
 
@@ -30,8 +32,6 @@ app.config.from_object('config')
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-# TODO: connect to a local postgresql database
-
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
@@ -43,10 +43,15 @@ class Venue(db.Model):
     name = db.Column(db.String)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
+    genres = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    website = db.Column(db.String(180))
+    seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String(500))
+    shows = db.relationship("Show", back_populates="venue")
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -57,10 +62,25 @@ class Artist(db.Model):
     name = db.Column(db.String)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
+    genres = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    website = db.Column(db.String(180))
+    seeking_venue = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String(500))
+    shows = db.relationship("Show", back_populates="artist")
+
+class Show(db.Model):
+    __tablename__ = 'Show'
+
+    venue_id=db.Column(db.ForeignKey('Venue.id'), primary_key=True)
+    artist_id=db.Column(db.ForeignKey('Artist.id'), primary_key=True)
+    start_time=db.Column(db.DateTime)
+    artist = db.relationship("Artist", back_populates="shows")
+    venue = db.relationship("Venue", back_populates="shows")
+
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
@@ -117,7 +137,23 @@ def venues():
       "num_upcoming_shows": 0,
     }]
   }]
-  return render_template('pages/venues.html', areas=data);
+
+  db_data = Venue.query.all()
+  cities = Venue.query.with_entities(
+    Venue.city,
+    Venue.state,
+  ).group_by(
+    Venue.city,
+    Venue.state,
+  ).all()
+
+  model_data = list(map(lambda item: {
+    "city": item.city,
+    "state": item.state,
+    "venues": list(filter(lambda venue: venue.city == item.city, db_data))
+  }, cities))
+
+  return render_template('pages/venues.html', areas=model_data);
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -215,8 +251,11 @@ def show_venue(venue_id):
     "past_shows_count": 1,
     "upcoming_shows_count": 1,
   }
-  data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
-  return render_template('pages/show_venue.html', venue=data)
+  # data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
+
+  db_data = Venue.query.get(venue_id)
+
+  return render_template('pages/show_venue.html', venue=db_data)
 
 #  Create Venue
 #  ----------------------------------------------------------------
@@ -354,8 +393,11 @@ def show_artist(artist_id):
     "past_shows_count": 0,
     "upcoming_shows_count": 3,
   }
-  data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
-  return render_template('pages/show_artist.html', artist=data)
+  # data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
+
+  db_artist = Artist.query.get(artist_id)
+
+  return render_template('pages/show_artist.html', artist=db_artist)
 
 #  Update
 #  ----------------------------------------------------------------
@@ -376,6 +418,7 @@ def edit_artist(artist_id):
     "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
   }
   # TODO: populate form with fields from artist with ID <artist_id>
+
   return render_template('forms/edit_artist.html', form=form, artist=artist)
 
 @app.route('/artists/<int:artist_id>/edit', methods=['POST'])

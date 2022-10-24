@@ -1,5 +1,7 @@
 {% extends 'layouts/main.html' %}
 {% block title %}Venue Search{% endblock %}
+{% set genres = venue.genres.split(',') %}
+
 {% block content %}
 <div class="row">
 	<div class="col-sm-6">
@@ -10,7 +12,7 @@
 			ID: {{ venue.id }}
 		</p>
 		<div class="genres">
-			{% for genre in venue.genres %}
+			{% for genre in genres %}
 			<span class="genre">{{ genre }}</span>
 			{% endfor %}
 		</div>
