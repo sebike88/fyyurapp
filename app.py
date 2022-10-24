@@ -12,6 +12,13 @@ import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
+
+from markupsafe import escape
+
+import collections
+collections.Callable = collections.abc.Callable
+
+
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
