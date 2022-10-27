@@ -14,7 +14,8 @@ from flask_wtf import Form
 from forms import *
 from flask_migrate import Migrate
 from sqlalchemy import func
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, contains_eager
+from datetime import datetime
 
 from markupsafe import escape
 
@@ -301,7 +302,13 @@ def artists():
     "id": 6,
     "name": "The Wild Sax Band",
   }]
-  return render_template('pages/artists.html', artists=data)
+
+  db_data = Artist.query.with_entities(
+    Artist.id,
+    Artist.name
+  ).all()
+
+  return render_template('pages/artists.html', artists=db_data)
 
 @app.route('/artists/search', methods=['POST'])
 def search_artists():
@@ -395,9 +402,58 @@ def show_artist(artist_id):
   }
   # data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
 
-  db_artist = Artist.query.get(artist_id)
+  artist = Artist.query.get(artist_id)
+  upcoming_shows = list(filter(lambda show: show.start_time > datetime.now(), artist.shows))
+  past_shows = list(filter(lambda show: show.start_time <= datetime.now(), artist.shows))
+  print(upcoming_shows)
+  print(past_shows)
 
-  return render_template('pages/show_artist.html', artist=db_artist)
+  artist_data = {
+    "id": artist.id,
+    "name": artist.name,
+    "genres": artist.genres,
+    "city": artist.city,
+    "state": artist.state,
+    "phone": artist.phone,
+    "seeking_venue": artist.seeking_venue,
+    "image_link": artist.image_link,
+    "upcoming_shows": list(map(lambda show: {
+      "venue_id": show.venue.id,
+      "venue_name": show.venue.name,
+      "venue_image_link": show.venue.image_link,
+      "start_time": show.start_time.strftime("%Y-%m-%dT%X"),
+    }, upcoming_shows)),
+    "past_shows": list(map(lambda show: {
+      "venue_id": show.venue.id,
+      "venue_name": show.venue.name,
+      "venue_image_link": show.venue.image_link,
+      "start_time": show.start_time.strftime("%Y-%m-%dT%X"),
+    }, past_shows))
+  }
+
+  print(artist_data)
+
+  # print(artist.__dict__)
+
+  # db_artist = db.session.query(
+  #   Artist
+  # ).\
+  # filter_by(id = artist_id)
+
+  # print(db_artist.all())
+
+  # Patient.query.join(Patient.mother, aliased=True)\
+  #                   .filter_by(phenoscore=10)
+
+
+  # artist_data = {
+  #   **artist,
+
+  # }
+  # print(db_artist.shows)
+  # print(db_artist.shows[0].venue.name)
+
+  return render_template('pages/show_artist.html', artist=artist_data)
 
 #  Update
 #  ----------------------------------------------------------------
@@ -516,7 +572,7 @@ def shows():
     "artist_id": 6,
     "artist_name": "The Wild Sax Band",
     "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-15T20:00:00.000Z"
+    "start_time": "2022-04-15T20:00:00.000Z"
   }]
   return render_template('pages/shows.html', shows=data)
 
