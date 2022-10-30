@@ -76,8 +76,9 @@ class Artist(db.Model):
 class Show(db.Model):
     __tablename__ = 'Show'
 
-    venue_id=db.Column(db.ForeignKey('Venue.id'), primary_key=True)
-    artist_id=db.Column(db.ForeignKey('Artist.id'), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    venue_id=db.Column(db.ForeignKey('Venue.id'))
+    artist_id=db.Column(db.ForeignKey('Artist.id'))
     start_time=db.Column(db.DateTime)
     artist = db.relationship("Artist", back_populates="shows")
     venue = db.relationship("Venue", back_populates="shows")
@@ -255,8 +256,30 @@ def show_venue(venue_id):
   # data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
 
   db_data = Venue.query.get(venue_id)
+  past_shows = list(filter(lambda show: show.start_time <= datetime.now(), db_data.shows))
+  upcoming_shows = list(filter(lambda show: show.start_time > datetime.now(), db_data.shows))
 
-  return render_template('pages/show_venue.html', venue=db_data)
+  model_data = {
+    **db_data.__dict__,
+    "past_shows": map(lambda show: {
+      "artist_id": show.artist.id,
+      "artist_name": show.artist.name,
+      "artist_image_link": show.artist.image_link,
+      "start_time": show.start_time.strftime("%Y-%m-%dT%X"),
+    }, past_shows),
+    "upcoming_shows": map(lambda show: {
+      "artist_id": show.artist.id,
+      "artist_name": show.artist.name,
+      "artist_image_link": show.artist.image_link,
+      "start_time": show.start_time.strftime("%Y-%m-%dT%X"),
+    }, upcoming_shows),
+    "past_shows_count": len(past_shows),
+    "upcoming_shows_count": len(upcoming_shows),
+  }
+
+  print(model_data)
+
+  return render_template('pages/show_venue.html', venue=model_data)
 
 #  Create Venue
 #  ----------------------------------------------------------------
@@ -568,13 +591,34 @@ def shows():
     "start_time": "2035-04-08T20:00:00.000Z"
   }, {
     "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
     "artist_id": 6,
+    "venue_name": "Park Square Live Music & Coffee",
     "artist_name": "The Wild Sax Band",
     "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
     "start_time": "2022-04-15T20:00:00.000Z"
   }]
-  return render_template('pages/shows.html', shows=data)
+
+  artist_subquery = Artist.query.with_entities(
+    Artist.id,
+    Artist.name,
+    Artist.image_link,
+  ).subquery()
+
+  venue_subquery = Venue.query.with_entities(
+    Venue.name,
+  ).subquery()
+
+  db_data = Show.query.all()
+  model_data = list(map(lambda show: {
+      "venue_id": show.venue_id,
+      "artist_id": show.artist_id,
+      "artist_name": show.artist.name,
+      "artist_image_link": show.artist.image_link,
+      "venue_name": show.venue.name,
+      "start_time": show.start_time.strftime("%Y-%m-%dT%X"),
+    }, db_data))
+
+  return render_template('pages/shows.html', shows=model_data)
 
 @app.route('/shows/create')
 def create_shows():
