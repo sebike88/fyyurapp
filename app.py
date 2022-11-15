@@ -350,7 +350,23 @@ def search_artists():
       "num_upcoming_shows": 0,
     }]
   }
-  return render_template('pages/search_artists.html', results=response, search_term=request.form.get('search_term', ''))
+
+  search_term = request.form.get('search_term')
+
+  print(search_term)
+  filter_data = func.lower(Artist.name).contains(func.lower(search_term))
+  query = db.session.query(Artist).filter(filter_data)
+
+  db_response = {
+    "count": query.count(),
+    "data": list(map(lambda artist: {
+      "id": artist.id,
+      "name": artist.name,
+      "num_upcoming_shows": len(list(filter(lambda show: show.start_time > datetime.now(), artist.shows)))
+    }, query.all()))
+  }
+
+  return render_template('pages/search_artists.html', results=db_response, search_term=search_term)
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
